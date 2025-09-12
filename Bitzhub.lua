@@ -8,7 +8,6 @@ local playerName = player.Name
 local invisActive = false
 local noclipActive = false
 local isFarming = false
-local isFarmingSpecific = false
 local toolGoal = 200
 
 -- Funções auxiliares
@@ -136,15 +135,17 @@ end)
 
 local noclipButton = createButton("Noclip: OFF",pos)
 pos += 45
+local RunService = game:GetService("RunService")
 noclipButton.MouseButton1Click:Connect(function()
 	noclipActive = not noclipActive
 	noclipButton.Text = noclipActive and "Noclip: ON" or "Noclip: OFF"
 end)
-
-game:GetService("RunService").Stepped:Connect(function()
+RunService.Stepped:Connect(function()
 	if noclipActive then
 		for _,part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then part.CanCollide = false end
+			if part:IsA("BasePart") and part.CanCollide then
+				part.CanCollide = false
+			end
 		end
 	end
 end)
@@ -162,9 +163,10 @@ invisButton.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Botão Farm Todas Frutas
+-- Botão Farm 200 Fruits
 local farmBtn = createButton("Farm 200 Fruits",pos)
 pos += 45
+local isFarming = false
 farmBtn.MouseButton1Click:Connect(function()
 	if isFarming then return end
 	isFarming = true
@@ -197,75 +199,42 @@ farmBtn.MouseButton1Click:Connect(function()
 	isFarming = false
 end)
 
--- Botão Farm Plant Específica
-local label = Instance.new("TextLabel", scrollFrame)
-label.Position = UDim2.new(0,5,0,pos)
-label.Size = UDim2.new(1,-10,0,20)
-label.Text = "Nome da Planta (Case Sensitive):"
-label.TextColor3 = Color3.fromRGB(255,255,255)
-label.BackgroundTransparency = 1
-pos += 25
-
-local textBox = Instance.new("TextBox", scrollFrame)
-textBox.Position = UDim2.new(0,5,0,pos)
-textBox.Size = UDim2.new(1,-10,0,25)
-textBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
-textBox.TextColor3 = Color3.fromRGB(255,255,255)
-textBox.PlaceholderText = "Ex: Tomato"
-textBox.Text = ""
-pos += 35
-scrollFrame.CanvasSize = UDim2.new(0,0,0,pos)
-
-local farmSpecificBtn = createButton("Farm Planta Específica",pos)
+-- ESP Jogadores
+local espButton = createButton("ESP Jogadores: OFF",pos)
 pos += 45
-farmSpecificBtn.MouseButton1Click:Connect(function()
-	if isFarmingSpecific then return end
-	local plantName = textBox.Text
-	if plantName == "" then return end
-	isFarmingSpecific = true
-	local plantsFolder = myFarm:FindFirstChild("Important"):FindFirstChild("Plants_Physical")
-	if plantsFolder then
-		local toolCount = countTools()
-		for _,plant in ipairs(plantsFolder:GetChildren()) do
-			if plant.Name == plantName then
-				local fruits = plant:FindFirstChild("Fruits")
-				if fruits and #fruits:GetChildren() > 0 then
-					for _,fruit in ipairs(fruits:GetChildren()) do
-						if toolCount >= toolGoal then break end
-						if teleportToObject(fruit) then
-							task.wait(0)
-							simulateKeyPress("E")
-							task.wait(0)
-							toolCount = countTools()
-						end
-					end
-				else
-					if teleportToObject(plant) then
-						task.wait(0)
-						simulateKeyPress("E")
-						task.wait(0)
-						toolCount = countTools()
-					end
+local espOn = false
+local espLabels = {}
+
+espButton.MouseButton1Click:Connect(function()
+	espOn = not espOn
+	espButton.Text = espOn and "ESP Jogadores: ON" or "ESP Jogadores: OFF"
+
+	if espOn then
+		for _, plr in ipairs(game.Players:GetPlayers()) do
+			if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+				if not espLabels[plr] then
+					local billboard = Instance.new("BillboardGui")
+					billboard.Name = "ESPLabel"
+					billboard.Size = UDim2.new(0,100,0,50)
+					billboard.Adornee = plr.Character.HumanoidRootPart
+					billboard.AlwaysOnTop = true
+					local label = Instance.new("TextLabel", billboard)
+					label.Size = UDim2.new(1,0,1,0)
+					label.BackgroundTransparency = 1
+					label.TextColor3 = Color3.new(1,0,0)
+					label.TextStrokeTransparency = 0
+					label.Text = plr.Name
+					label.Font = Enum.Font.SourceSansBold
+					label.TextSize = 14
+					billboard.Parent = plr.Character
+					espLabels[plr] = billboard
 				end
 			end
-			if toolCount >= toolGoal then break end
 		end
+	else
+		for plr, gui in pairs(espLabels) do
+			if gui then gui:Destroy() end
+		end
+		espLabels = {}
 	end
-	isFarmingSpecific = false
 end)
-
--- Teleporte NPCs
-local npcLabel = createButton("=== TELEPORT NPCs ===",pos)
-npcLabel.Active = false
-pos += 45
-
-local gearBtn = createButton("Gear Shop",pos)
-pos += 45
-local questBtn = createButton("Quest Giver",pos)
-pos += 45
-
-local gearShopCFrame = CFrame.new(-261.29, 2.99, -26.67)
-local questGiverCFrame = CFrame.new(-263.65, 3, -1.12)
-
-gearBtn.MouseButton1Click:Connect(function() hrp.CFrame = gearShopCFrame end)
-questBtn.MouseButton1Click:Connect(function() hrp.CFrame = questGiverCFrame end)
