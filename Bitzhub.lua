@@ -238,12 +238,3 @@ espButton.MouseButton1Click:Connect(function()
 		espLabels = {}
 	end
 end)
-
-local fairyBtn = createButton("Teleport Fairy World",pos)
-pos += 45
-fairyBtn.MouseButton1Click:Connect(function()
-	local portal = workspace:FindFirstChild("FairyWorldPortalDestination")
-	if portal and hrp then
-		hrp.CFrame = portal.CFrame
-	end
-end)
