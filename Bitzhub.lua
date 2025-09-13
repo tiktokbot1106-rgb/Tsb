@@ -239,30 +239,11 @@ espButton.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Botão teleportar para FairyWorldPortalDestination
-local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-
-local portal = workspace:FindFirstChild("FairyWorldPortalDestination")
-
--- Criar botão na tela
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "FairyPortalGUI"
-screenGui.ResetOnSpawn = false
-
-local tpButton = Instance.new("TextButton")
-tpButton.Size = UDim2.new(0,200,0,40)
-tpButton.Position = UDim2.new(0.5,-100,0,10)
-tpButton.BackgroundColor3 = Color3.fromRGB(80,0,150)
-tpButton.TextColor3 = Color3.fromRGB(255,255,255)
-tpButton.Font = Enum.Font.GothamBold
-tpButton.TextSize = 16
-tpButton.Text = "Ir para Fairy World"
-tpButton.Parent = screenGui
-
-tpButton.MouseButton1Click:Connect(function()
+local fairyBtn = createButton("Teleport Fairy World",pos)
+pos += 45
+fairyBtn.MouseButton1Click:Connect(function()
+	local portal = workspace:FindFirstChild("FairyWorldPortalDestination")
 	if portal and hrp then
-		hrp.CFrame = portal.CFrame + Vector3.new(0,5,0)
+		hrp.CFrame = portal.CFrame
 	end
 end)
