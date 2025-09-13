@@ -1,0 +1,57 @@
+local player = game.Players.LocalPlayer
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "ShopGUI"
+screenGui.ResetOnSpawn = false
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0,150,0,40)
+toggleButton.Position = UDim2.new(0,10,0,10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+toggleButton.Text = "Abrir Painel"
+toggleButton.Font = Enum.Font.Gotham
+toggleButton.TextSize = 16
+toggleButton.Parent = screenGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,220,0,150)
+mainFrame.Position = UDim2.new(0,10,0,60)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local function createButton(text, posY)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1,-10,0,35)
+	btn.Position = UDim2.new(0,5,0,posY)
+	btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.Text = text
+	btn.Parent = mainFrame
+	return btn
+end
+
+toggleButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+	toggleButton.Text = mainFrame.Visible and "Fechar Painel" or "Abrir Painel"
+end)
+
+-- Botão abrir Gear_Shop
+local gearBtn = createButton("Abrir Gear Shop",5)
+gearBtn.MouseButton1Click:Connect(function()
+	local gui = player.PlayerGui:FindFirstChild("Gear_Shop")
+	if gui then
+		gui.Enabled = not gui.Enabled
+	end
+end)
+
+-- Botão abrir Seed_Shop
+local seedBtn = createButton("Abrir Seed Shop",45)
+seedBtn.MouseButton1Click:Connect(function()
+	local gui = player.PlayerGui:FindFirstChild("Seed_Shop")
+	if gui then
+		gui.Enabled = not gui.Enabled
+	end
+end)
