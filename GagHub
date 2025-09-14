@@ -1,232 +1,142 @@
--- Lunara Hub - Farm 200 Fruits + Auto Sell (On/Off com GUI toggle)
+-- 🌱 Lunara Hub - AutoFarm + AutoSell otimizado
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local playerGui = player:WaitForChild("PlayerGui")
-local toolGoal = 200
-local isFarming = false
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameEvents = ReplicatedStorage:WaitForChild("GameEvents")
+
+-- ⚙️ Configurações
+local sellThreshold = 15
 local autoFarmEnabled = false
 local autoSellEnabled = false
-local IsSelling = false
-local SellThreshold = 15
 
--- Função para encontrar a fazenda do jogador
+-- 🔍 Achar fazenda
 local function findOwnedFarm()
-	local rootFarmFolder = workspace:FindFirstChild("Farm")
-	if not rootFarmFolder then return nil end
-	for _, farmFolder in ipairs(rootFarmFolder:GetChildren()) do
-		if farmFolder:IsA("Folder") and farmFolder.Name == "Farm" then
-			local important = farmFolder:FindFirstChild("Important")
-			if important then
-				local data = important:FindFirstChild("Data")
-				if data then
-					local ownerValue = data:FindFirstChild("Owner")
-					if ownerValue and ownerValue:IsA("StringValue") and ownerValue.Value == player.Name then
-						return farmFolder
-					end
-				end
+	local farms = workspace:FindFirstChild("Farm")
+	if not farms then return nil end
+	for _, farm in ipairs(farms:GetChildren()) do
+		local important = farm:FindFirstChild("Important")
+		if important then
+			local data = important:FindFirstChild("Data")
+			if data and data:FindFirstChild("Owner") and data.Owner.Value == player.Name then
+				return farm
 			end
 		end
 	end
-	return nil
 end
-
 local myFarm = findOwnedFarm()
 
--- Contar ferramentas
-local function countTools()
-	local count = 0
-	for _, tool in ipairs(player.Backpack:GetChildren()) do
-		if tool:IsA("Tool") then
-			count += 1
-		end
+-- 📦 Contar frutas
+local function countFruits()
+	local total = 0
+	for _, t in ipairs(player.Backpack:GetChildren()) do
+		if t:IsA("Tool") then total += 1 end
 	end
-	return count
+	for _, t in ipairs(player.Character:GetChildren()) do
+		if t:IsA("Tool") then total += 1 end
+	end
+	return total
 end
 
--- Teleporte para objeto
-local function teleportToObject(object)
-	local part = object:IsA("BasePart") and object or object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart")
+-- 📍 Teleporte rápido
+local function tp(obj)
+	local part = obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
 	if part then
-		hrp.CFrame = part.CFrame + Vector3.new(0,5,0)
-		return true
+		character:PivotTo(part.CFrame + Vector3.new(0,3,0))
 	end
-	return false
 end
 
--- Simular tecla "E"
-local function simulateKeyPress()
+-- ⌨️ Pressionar E
+local function pressE()
 	local vim = game:GetService("VirtualInputManager")
 	vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
 	vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
 end
 
--- Função de farm
-local function startAutoFarm(farm)
-	if isFarming then return end
-	local plantsFolder = farm:FindFirstChild("Important"):FindFirstChild("Plants_Physical")
-	if not plantsFolder then return end
-	isFarming = true
-
-	for _, plant in ipairs(plantsFolder:GetChildren()) do
-		if not autoFarmEnabled then break end
-		local toolCount = countTools()
-		if toolCount >= toolGoal then break end
-
-		local fruits = plant:FindFirstChild("Fruits")
-		if fruits then
-			for _, fruit in ipairs(fruits:GetChildren()) do
-				if not autoFarmEnabled then break end
-				if toolCount >= toolGoal then break end
-				if teleportToObject(fruit) then
-					task.wait(0)
-					simulateKeyPress()
-					task.wait(0)
-				end
-				toolCount = countTools()
-			end
-		else
-			if teleportToObject(plant) then
-				task.wait(0)
-				simulateKeyPress()
-				task.wait(0)
-			end
+-- 💰 Vender
+local function sellInventory()
+	local tpFolder = workspace:FindFirstChild("Tutorial_Points")
+	if tpFolder then
+		local sellPoint = tpFolder:FindFirstChild("Tutorial_Point_2")
+		if sellPoint then
+			character:PivotTo(sellPoint.CFrame + Vector3.new(0,3,0))
 		end
 	end
-	isFarming = false
-end
-
--- Funções Auto Sell
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local GameEvents = ReplicatedStorage:WaitForChild("GameEvents")
-
-local function SellInventory()
-	if IsSelling then return end
-	local Character = player.Character
-	if not Character then return end
-	IsSelling = true
-	local Previous = Character:GetPivot()
-	local PreviousSheckles = player.leaderstats.Sheckles.Value
-
-	Character:PivotTo(CFrame.new(62,4,-26)) -- NPC de venda
-	while task.wait() do
-		if player.leaderstats.Sheckles.Value ~= PreviousSheckles then break end
+	for i = 1, 10 do
 		GameEvents.Sell_Inventory:FireServer()
 	end
-	Character:PivotTo(Previous)
-	task.wait(0.2)
-	IsSelling = false
 end
 
-local function GetInvCrops()
-	local Crops = {}
-	local function CollectCropsFromParent(Parent)
-		for _, Tool in next, Parent:GetChildren() do
-			if Tool:FindFirstChild("Item_String") then
-				table.insert(Crops, Tool)
+-- 🌱 Loop AutoFarm (com intervalo leve)
+task.spawn(function()
+	while true do
+		if autoFarmEnabled and myFarm then
+			local plants = myFarm.Important.Plants_Physical
+			for _, plant in ipairs(plants:GetChildren()) do
+				if not autoFarmEnabled then break end
+				if countFruits() >= sellThreshold then break end
+
+				local fruits = plant:FindFirstChild("Fruits")
+				if fruits then
+					for _, fruit in ipairs(fruits:GetChildren()) do
+						if not autoFarmEnabled or countFruits() >= sellThreshold then break end
+						tp(fruit)
+						pressE()
+						task.wait(0.05) -- 🔹 pequeno intervalo (evita lag)
+					end
+				else
+					tp(plant)
+					pressE()
+					task.wait(0.05)
+				end
 			end
 		end
+		task.wait(0.1)
 	end
-	if player.Character then CollectCropsFromParent(player.Character) end
-	CollectCropsFromParent(player.Backpack)
-	return Crops
-end
+end)
 
-local function AutoSellLoop()
-	while autoSellEnabled do
-		if #GetInvCrops() >= SellThreshold then
-			SellInventory()
+-- 🛒 Loop AutoSell
+task.spawn(function()
+	while true do
+		if autoSellEnabled and countFruits() >= sellThreshold then
+			sellInventory()
 		end
-		task.wait(0.5)
+		task.wait(0.2)
 	end
-end
+end)
 
--- Criar GUI
+-- 🎛️ GUI
 local gui = Instance.new("ScreenGui", playerGui)
-gui.Name = "LunaraHubGUI"
-
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,300,0,180)
-frame.Position = UDim2.new(0.5,-150,0.5,-90)
+frame.Size = UDim2.new(0,250,0,150)
+frame.Position = UDim2.new(0.5,-125,0.5,-75)
 frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.Active = true
 frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,30)
-title.Text = "Bitz_Hub - Grow a Garden"
+title.Text = "Bitzhub - Grow a garden🌱"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundColor3 = Color3.fromRGB(50,0,0)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
 
--- Botão fechar/abrir
-local toggleBtn = Instance.new("TextButton", frame)
-toggleBtn.Position = UDim2.new(1, -30, 0, 5)
-toggleBtn.Size = UDim2.new(0,25,0,25)
-toggleBtn.Text = "X"
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
-toggleBtn.Font = Enum.Font.SourceSansBold
-toggleBtn.TextSize = 18
-
-local isOpen = true
-toggleBtn.MouseButton1Click:Connect(function()
-	if isOpen then
-		for _, child in ipairs(frame:GetChildren()) do
-			if child ~= title and child ~= toggleBtn then
-				child.Visible = false
-			end
-		end
-		frame.Size = UDim2.new(0,300,0,30)
-		isOpen = false
-	else
-		for _, child in ipairs(frame:GetChildren()) do
-			child.Visible = true
-		end
-		frame.Size = UDim2.new(0,300,0,180)
-		isOpen = true
-	end
-end)
-
--- Botão AutoFarm
-local farmToggleBtn = Instance.new("TextButton", frame)
-farmToggleBtn.Position = UDim2.new(0,10,0,40)
-farmToggleBtn.Size = UDim2.new(1,-20,0,40)
-farmToggleBtn.Text = "AutoFarm OFF"
-farmToggleBtn.TextColor3 = Color3.new(1,1,1)
-farmToggleBtn.BackgroundColor3 = Color3.fromRGB(70,130,70)
-farmToggleBtn.Font = Enum.Font.SourceSansBold
-farmToggleBtn.TextSize = 18
-
-farmToggleBtn.MouseButton1Click:Connect(function()
-	if not myFarm then return end
+-- Botão Farm
+local farmBtn = Instance.new("TextButton", frame)
+farmBtn.Size = UDim2.new(1,-20,0,40)
+farmBtn.Position = UDim2.new(0,10,0,40)
+farmBtn.Text = "AutoFarm OFF"
+farmBtn.MouseButton1Click:Connect(function()
 	autoFarmEnabled = not autoFarmEnabled
-	farmToggleBtn.Text = autoFarmEnabled and "AutoFarm ON" or "AutoFarm OFF"
-	if autoFarmEnabled then
-		spawn(function()
-			while autoFarmEnabled do
-				startAutoFarm(myFarm)
-				task.wait(0.5)
-			end
-		end)
-	end
+	farmBtn.Text = autoFarmEnabled and "AutoFarm ON" or "AutoFarm OFF"
 end)
 
--- Botão AutoSell
-local autoSellBtn = Instance.new("TextButton", frame)
-autoSellBtn.Position = UDim2.new(0,10,0,90)
-autoSellBtn.Size = UDim2.new(1,-20,0,40)
-autoSellBtn.Text = "Auto Sell OFF"
-autoSellBtn.TextColor3 = Color3.new(1,1,1)
-autoSellBtn.BackgroundColor3 = Color3.fromRGB(130,70,70)
-autoSellBtn.Font = Enum.Font.SourceSansBold
-autoSellBtn.TextSize = 18
-
-autoSellBtn.MouseButton1Click:Connect(function()
+-- Botão Sell
+local sellBtn = Instance.new("TextButton", frame)
+sellBtn.Size = UDim2.new(1,-20,0,40)
+sellBtn.Position = UDim2.new(0,10,0,90)
+sellBtn.Text = "AutoSell OFF"
+sellBtn.MouseButton1Click:Connect(function()
 	autoSellEnabled = not autoSellEnabled
-	autoSellBtn.Text = autoSellEnabled and "Auto Sell ON" or "Auto Sell OFF"
-	if autoSellEnabled then
-		spawn(AutoSellLoop)
-	end
+	sellBtn.Text = autoSellEnabled and "AutoSell ON" or "AutoSell OFF"
 end)
