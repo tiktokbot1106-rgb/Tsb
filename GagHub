@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameEvents = ReplicatedStorage:WaitForChild("GameEvents")
 
 -- ⚙️ Configurações
-local sellThreshold = 15
+local sellThreshold = 100
 local autoFarmEnabled = false
 local autoSellEnabled = false
 
