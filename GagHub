@@ -140,21 +140,29 @@ sellBtn.MouseButton1Click:Connect(function()
 	autoSellEnabled = not autoSellEnabled
 	sellBtn.Text = autoSellEnabled and "AutoSell ON" or "AutoSell OFF"
 end)
+-- Lunara Hub: Botão pequeno para abrir/fechar GUI
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- 🔹 Botão para abrir/fechar a GUI
-local toggleBtn = Instance.new("TextButton", playerGui)
-toggleBtn.Size = UDim2.new(0,30,0,30)
-toggleBtn.Position = UDim2.new(0,10,0,10) -- canto superior esquerdo
-toggleBtn.Text = "☰"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
+-- Botão pequeno
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 25, 0, 25)
+toggleBtn.Position = UDim2.new(0, 5, 0, 5)
+toggleBtn.Text = "="
 toggleBtn.Font = Enum.Font.SourceSansBold
 toggleBtn.TextSize = 18
-toggleBtn.ZIndex = 10 -- sempre acima
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+toggleBtn.Name = "LunaraHubToggle"
+toggleBtn.Parent = playerGui
 
--- Estado da GUI
+-- Variável para controlar a visibilidade da GUI
 local guiVisible = true
+local gui = playerGui:FindFirstChild("LunaraHubGUI") -- procura a GUI principal
+
 toggleBtn.MouseButton1Click:Connect(function()
-	guiVisible = not guiVisible
-	frame.Visible = guiVisible
+	if gui then
+		guiVisible = not guiVisible
+		gui.Enabled = guiVisible
+	end
 end)
