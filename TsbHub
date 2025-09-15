@@ -1,42 +1,12 @@
--- Script de servidor + GUI mobile para teste de anti-cheat
+-- Script: Orbitar Player + Teleport Zona Segura Automático
 -- By ChatGPT
 
--- ========== SERVIDOR: Imortal e invisível ==========
 local Players = game:GetService("Players")
-
-Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Connect(function(character)
-		local humanoid = character:WaitForChild("Humanoid")
-		local hrp = character:WaitForChild("HumanoidRootPart")
-
-		-- Imortal
-		humanoid.MaxHealth = math.huge
-		humanoid.Health = math.huge
-
-		-- Invisível
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") or part:IsA("MeshPart") then
-				part.Transparency = 1
-				part.CanCollide = false
-			elseif part:IsA("Decal") or part:IsA("Texture") then
-				part.Transparency = 1
-			end
-		end
-
-		-- Impede morte
-		humanoid.Died:Connect(function()
-			wait(0.1)
-			humanoid.Health = humanoid.MaxHealth
-		end)
-	end)
-end)
-
--- ========== CLIENTE: Orbitar player com GUI mobile ==========
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Configurações iniciais
+-- =================== Variáveis ===================
 local Distancia = 10
 local Velocidade = 2
 local Orbitar = false
@@ -44,7 +14,10 @@ local TargetHRP = nil
 local HRP = nil
 local Angulo = 0
 
--- Atualiza Character após morte
+local autoSafeEnabled = true -- ativa/desativa auto safe
+local SafeZoneName = "Death Cutscene" -- nome da zona segura
+
+-- =================== Atualiza Character ===================
 local function UpdateCharacter()
 	local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	HRP = character:WaitForChild("HumanoidRootPart")
@@ -52,7 +25,7 @@ end
 UpdateCharacter()
 LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
--- GUI
+-- =================== GUI ===================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = game.CoreGui
 
@@ -65,7 +38,6 @@ Frame.Active = true
 Frame.Draggable = false
 Frame.Parent = ScreenGui
 
--- Título arrastável
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -75,20 +47,15 @@ Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Parent = Frame
 
--- Arrastar GUI pelo título (touch/mobile)
+-- =================== Arrastar GUI ===================
 do
-	local dragging = false
-	local dragInput = nil
-	local dragStart = nil
-	local startPos = nil
-
+	local dragging, dragInput, dragStart, startPos = false, nil, nil, nil
 	Title.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
 			dragInput = input
 			dragStart = input.Position
 			startPos = Frame.Position
-
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -97,7 +64,6 @@ do
 			end)
 		end
 	end)
-
 	UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			local delta = input.Position - dragStart
@@ -111,7 +77,7 @@ do
 	end)
 end
 
--- ScrollingFrame para players
+-- =================== Lista de Players ===================
 local ScrollingFrame = Instance.new("ScrollingFrame")
 ScrollingFrame.Size = UDim2.new(1, 0, 0.4, -30)
 ScrollingFrame.Position = UDim2.new(0, 0, 0, 30)
@@ -124,7 +90,6 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 4)
 UIListLayout.Parent = ScrollingFrame
 
--- Funções orbitar
 local function StartOrbit(target)
 	TargetHRP = target
 	Orbitar = true
@@ -134,12 +99,9 @@ local function StopOrbit()
 	TargetHRP = nil
 end
 
--- Atualizar lista de players
 local function AtualizarLista()
 	for _, child in pairs(ScrollingFrame:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
-		end
+		if child:IsA("TextButton") then child:Destroy() end
 	end
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= LocalPlayer then
@@ -150,7 +112,6 @@ local function AtualizarLista()
 			btn.Text = plr.Name
 			btn.TextScaled = true
 			btn.Parent = ScrollingFrame
-
 			btn.MouseButton1Click:Connect(function()
 				if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
 					StartOrbit(plr.Character.HumanoidRootPart)
@@ -165,7 +126,7 @@ Players.PlayerAdded:Connect(AtualizarLista)
 Players.PlayerRemoving:Connect(AtualizarLista)
 AtualizarLista()
 
--- Sliders mobile
+-- =================== Sliders ===================
 local SliderFrame = Instance.new("Frame")
 SliderFrame.Size = UDim2.new(1, 0, 0.6, -30)
 SliderFrame.Position = UDim2.new(0, 0, 0.4, 30)
@@ -178,7 +139,7 @@ local function CreateSlider(name, min, max, default, posY, callback)
 	label.Position = UDim2.new(0, 10, 0, posY)
 	label.BackgroundTransparency = 1
 	label.Text = name .. ": " .. default
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.TextScaled = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = SliderFrame
@@ -191,71 +152,79 @@ local function CreateSlider(name, min, max, default, posY, callback)
 	sliderBG.Parent = SliderFrame
 
 	local sliderFill = Instance.new("Frame")
-	sliderFill.Size = UDim2.new((default - min)/(max - min), 1, 1, 0)
-	sliderFill.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+	sliderFill.Size = UDim2.new((default-min)/(max-min),1,1,0)
+	sliderFill.BackgroundColor3 = Color3.fromRGB(150,150,150)
 	sliderFill.BorderSizePixel = 0
 	sliderFill.Parent = sliderBG
 
 	local handle = Instance.new("Frame")
 	handle.Size = UDim2.new(0, 30, 1, 0)
-	handle.Position = UDim2.new((default - min)/(max - min) - 0.05, 0, 0, 0)
-	handle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+	handle.Position = UDim2.new((default-min)/(max-min)-0.05,0,0,0)
+	handle.BackgroundColor3 = Color3.fromRGB(200,200,200)
 	handle.BorderSizePixel = 0
 	handle.Parent = sliderBG
 
 	local draggingSlider = false
 	local sliderInput = nil
-
 	local function updateSlider(posX)
 		local pos = math.clamp(posX - sliderBG.AbsolutePosition.X, 0, sliderBG.AbsoluteSize.X)
-		local value = min + (pos / sliderBG.AbsoluteSize.X) * (max - min)
-		sliderFill.Size = UDim2.new((value - min)/(max - min), 0, 1, 0)
-		handle.Position = UDim2.new((value - min)/(max - min) - handle.Size.X.Scale/2, 0, 0, 0)
+		local value = min + (pos / sliderBG.AbsoluteSize.X)*(max-min)
+		sliderFill.Size = UDim2.new((value-min)/(max-min),0,1,0)
+		handle.Position = UDim2.new((value-min)/(max-min)-handle.Size.X.Scale/2,0,0,0)
 		label.Text = name .. ": " .. string.format("%.1f", value)
 		callback(value)
 	end
 
 	sliderBG.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch then
+		if input.UserInputType==Enum.UserInputType.Touch then
 			draggingSlider = true
 			sliderInput = input
 			updateSlider(input.Position.X)
 		end
 	end)
 	sliderBG.InputChanged:Connect(function(input)
-		if draggingSlider and input == sliderInput then
-			updateSlider(input.Position.X)
-		end
+		if draggingSlider and input==sliderInput then updateSlider(input.Position.X) end
 	end)
 	sliderBG.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch and input == sliderInput then
+		if input.UserInputType==Enum.UserInputType.Touch and input==sliderInput then
 			draggingSlider = false
 			sliderInput = nil
 		end
 	end)
 end
 
-CreateSlider("Velocidade", 0.5, 10, Velocidade, 0, function(val) Velocidade = val end)
-CreateSlider("Distancia", 2, 30, Distancia, 90, function(val) Distancia = val end)
+CreateSlider("Velocidade", 0.5, 10, Velocidade, 0, function(val) Velocidade=val end)
+CreateSlider("Distancia", 2, 30, Distancia, 90, function(val) Distancia=val end)
 
--- Botão Parar Orbitar
+-- =================== Botões ===================
 local StopBtn = Instance.new("TextButton")
 StopBtn.Size = UDim2.new(1, -20, 0, 45)
 StopBtn.Position = UDim2.new(0, 10, 0, 190)
-StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+StopBtn.BackgroundColor3 = Color3.fromRGB(180,50,50)
 StopBtn.Text = "Parar Orbitar"
-StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopBtn.TextColor3 = Color3.fromRGB(255,255,255)
 StopBtn.TextScaled = true
 StopBtn.Parent = SliderFrame
 StopBtn.MouseButton1Click:Connect(StopOrbit)
 
--- Rotação e olhar para o alvo
-RunService.Heartbeat:Connect(function(dt)
-	if Orbitar and TargetHRP and HRP then
-		Angulo = Angulo + Velocidade * dt
-		local x = math.cos(Angulo) * Distancia
-		local z = math.sin(Angulo) * Distancia
-		local pos = TargetHRP.Position + Vector3.new(x, 0, z)
-		HRP.CFrame = CFrame.lookAt(pos, TargetHRP.Position)
-	end
-end)
+local SafeZoneBtn = Instance.new("TextButton")
+SafeZoneBtn.Size = UDim2.new(1, -20, 0, 45)
+SafeZoneBtn.Position = UDim2.new(0, 10, 0, 250)
+SafeZoneBtn.BackgroundColor3 = Color3.fromRGB(50,180,50)
+SafeZoneBtn.Text = "Teleport Zona Segura"
+SafeZoneBtn.TextColor3 = Color3.fromRGB(255,255,255)
+SafeZoneBtn.TextScaled = true
+SafeZoneBtn.Parent = SliderFrame
+
+SafeZoneBtn.MouseButton1Click:Connect(function()
+	local character = LocalPlayer.Character
+	if not character then return end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	local safeZone = workspace:FindFirstChild(SafeZoneName)
+	if safeZone then
+		local pos
+		if safeZone:IsA("BasePart") then
+			pos = safeZone.Position
+		elseif safeZone:IsA("Model") then
+			if safe
