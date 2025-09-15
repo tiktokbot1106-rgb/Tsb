@@ -1,4 +1,4 @@
--- Script: Orbitar Player + Teleport Zona Segura Automático
+-- Script: Orbitar Player
 -- By ChatGPT
 
 local Players = game:GetService("Players")
@@ -7,15 +7,12 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- =================== Variáveis ===================
-local Distancia = 5      -- menor distância para orbitar
-local Velocidade = 1.5   -- velocidade menor
+local Distancia = 5      -- distância para orbitar
+local Velocidade = 1.5   -- velocidade do orbitar
 local Orbitar = false
 local TargetHRP = nil
 local HRP = nil
 local Angulo = 0
-
-local autoSafeEnabled = true
-local SafeZoneName = "Death Cutscene" -- zona segura
 
 -- =================== Atualiza Character ===================
 local function UpdateCharacter()
@@ -27,10 +24,11 @@ LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
 -- =================== GUI ===================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game.CoreGui
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 150, 0, 200)  -- GUI bem menor
+Frame.Size = UDim2.new(0, 150, 0, 180)  -- compacto
 Frame.Position = UDim2.new(0, 20, 0, 20)
 Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Frame.BorderSizePixel = 0
@@ -192,37 +190,13 @@ end
 CreateSlider("Velocidade",0.5,10,Velocidade,0,function(val) Velocidade=val end)
 CreateSlider("Distancia",2,15,Distancia,50,function(val) Distancia=val end)
 
--- =================== Auto Safe Zone ===================
-local function getSafeZonePosition()
-	local safeZone = workspace:FindFirstChild(SafeZoneName)
-	if not safeZone then return nil end
-	if safeZone:IsA("BasePart") then return safeZone.Position end
-	if safeZone:IsA("Model") then
-		if safeZone.PrimaryPart then return safeZone.PrimaryPart.Position end
-		for _,p in ipairs(safeZone:GetChildren()) do
-			if p:IsA("BasePart") then return p.Position end
-		end
-	end
-	return nil
-end
-
-RunService.Heartbeat:Connect(function()
-	if not autoSafeEnabled then return end
-	if not HRP then return end
-	local character = LocalPlayer.Character
-	if not character then return end
-	local humanoid = character:FindFirstChild("Humanoid")
-	if not humanoid then return end
-
-	local healthPercent = humanoid.Health / humanoid.MaxHealth
-	if healthPercent <= 0.25 then
-		local pos = getSafeZonePosition()
-		if pos then
-			HRP.CFrame = CFrame.new(pos + Vector3.new(0,5,0))
-		end
-	end
-end)
-
 -- =================== Orbitar ===================
 RunService.Heartbeat:Connect(function(dt)
-	if Orbitar and TargetHRP and HRP
+	if Orbitar and TargetHRP and HRP then
+		Angulo = Angulo + Velocidade * dt
+		local x = math.cos(Angulo) * Distancia
+		local z = math.sin(Angulo) * Distancia
+		local pos = TargetHRP.Position + Vector3.new(x, 0, z)
+		HRP.CFrame = CFrame.lookAt(pos, TargetHRP.Position)
+	end
+end)
