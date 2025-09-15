@@ -1,0 +1,147 @@
+--// GUI Teleport SafeDoor (dropdown rolável e só mostra quem tem SafeDoor)
+-- LocalScript
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+ScreenGui.Name = "SafeDoorTPGui"
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+-- Frame principal
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 250, 0, 150)
+Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+
+-- Título
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "Teleport SafeDoor"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.ZIndex = 2
+
+-- Dropdown botão
+local PlayerDropdown = Instance.new("TextButton", Frame)
+PlayerDropdown.Size = UDim2.new(1, -20, 0, 30)
+PlayerDropdown.Position = UDim2.new(0, 10, 0, 40)
+PlayerDropdown.Text = "Selecionar Player"
+PlayerDropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+PlayerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerDropdown.ZIndex = 2
+
+-- Dropdown rolável (ScrollingFrame)
+local DropdownFrame = Instance.new("ScrollingFrame", ScreenGui)
+DropdownFrame.Size = UDim2.new(0, 230, 0, 120)
+DropdownFrame.Position = UDim2.new(0, Frame.AbsolutePosition.X + 10, 0, Frame.AbsolutePosition.Y + 70)
+DropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+DropdownFrame.Visible = false
+DropdownFrame.ScrollBarThickness = 6
+DropdownFrame.ZIndex = 3
+DropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+DropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+DropdownFrame.ClipsDescendants = false
+
+-- Layout
+local UIListLayout = Instance.new("UIListLayout", DropdownFrame)
+UIListLayout.Padding = UDim.new(0, 2)
+
+-- Botão Teleport
+local TeleportBtn = Instance.new("TextButton", Frame)
+TeleportBtn.Size = UDim2.new(1, -20, 0, 30)
+TeleportBtn.Position = UDim2.new(0, 10, 1, -40)
+TeleportBtn.BackgroundColor3 = Color3.fromRGB(70, 0, 0)
+TeleportBtn.Text = "Teleportar"
+TeleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeleportBtn.ZIndex = 2
+
+-- Variável do player escolhido
+local selectedPlayer = nil
+
+-- Função para verificar se o player tem SafeDoor
+local function hasSafeDoor(playerName)
+    local lots = workspace:FindFirstChild("001_Lots")
+    if not lots then return false end
+
+    local house = lots:FindFirstChild(playerName .. "House")
+    if not house then return false end
+
+    local safeDoor = house:FindFirstChild("HousePickedByPlayer")
+        and house.HousePickedByPlayer:FindFirstChild("HouseModel")
+        and house.HousePickedByPlayer.HouseModel:FindFirstChild("001_Safe")
+        and house.HousePickedByPlayer.HouseModel["001_Safe"]:FindFirstChild("SafeDoor")
+
+    return safeDoor and safeDoor:IsA("BasePart")
+end
+
+-- Função para teleportar
+local function teleportBehindSafeDoor(targetPlayerName)
+    if not hasSafeDoor(targetPlayerName) then
+        warn("SafeDoor não encontrada para " .. targetPlayerName)
+        return
+    end
+
+    local lots = workspace:FindFirstChild("001_Lots")
+    local house = lots:FindFirstChild(targetPlayerName .. "House")
+    local safeDoor = house.HousePickedByPlayer.HouseModel["001_Safe"].SafeDoor
+
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    -- Teleportar 2 studs atrás e um pouco acima
+    local behindCFrame = safeDoor.CFrame * CFrame.new(0, 0, 2)
+    hrp.CFrame = CFrame.new(behindCFrame.Position + Vector3.new(0, 3, 0))
+end
+
+-- Preencher dropdown com players que têm SafeDoor
+local function updatePlayerList()
+    for _, child in ipairs(DropdownFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and hasSafeDoor(plr.Name) then
+            local Btn = Instance.new("TextButton", DropdownFrame)
+            Btn.Size = UDim2.new(1, 0, 0, 25)
+            Btn.Text = plr.Name
+            Btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Btn.ZIndex = 4
+
+            Btn.MouseButton1Click:Connect(function()
+                selectedPlayer = plr.Name
+                PlayerDropdown.Text = "Player: " .. plr.Name
+                DropdownFrame.Visible = false
+            end)
+        end
+    end
+end
+
+-- Abrir/fechar dropdown
+PlayerDropdown.MouseButton1Click:Connect(function()
+    DropdownFrame.Visible = not DropdownFrame.Visible
+    if DropdownFrame.Visible then
+        updatePlayerList()
+        -- Posicionar dropdown embaixo do botão
+        DropdownFrame.Position = UDim2.new(0, Frame.AbsolutePosition.X + 10, 0, Frame.AbsolutePosition.Y + 70)
+    end
+end)
+
+-- Teleportar
+TeleportBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer then
+        teleportBehindSafeDoor(selectedPlayer)
+    else
+        warn("Nenhum player selecionado!")
+    end
+end)
+
+-- Atualizar lista quando players entram/saem
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
