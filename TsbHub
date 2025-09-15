@@ -1,8 +1,9 @@
--- Script: Orbitar Player via GUI pequena com sliders
+-- Orbitar Player Mobile-Friendly com GUI arrastável pelo título
 -- By ChatGPT
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- Configurações iniciais
@@ -20,7 +21,6 @@ local function UpdateCharacter()
 	local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	HRP = character:WaitForChild("HumanoidRootPart")
 end
-
 UpdateCharacter()
 LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
@@ -30,16 +30,17 @@ ScreenGui.Name = "PlayerOrbiterGUI"
 ScreenGui.Parent = game.CoreGui
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 300)
+Frame.Size = UDim2.new(0, 250, 0, 400)
 Frame.Position = UDim2.new(0, 50, 0, 50)
 Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Frame.BorderSizePixel = 0
 Frame.Active = true
-Frame.Draggable = true
+Frame.Draggable = false -- Desativa arrasto geral
 Frame.Parent = ScreenGui
 
+-- Título arrastável
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 25)
+Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Title.BorderSizePixel = 0
 Title.Text = "Orbitar Player"
@@ -47,18 +48,52 @@ Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Parent = Frame
 
+-- GUI arrastável apenas pelo título
+local dragging = false
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
+
+Title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragInput = input
+		dragStart = input.Position
+		startPos = Frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+				dragInput = nil
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		Frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
 -- Container rolável para players
 local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(1, 0, 0.5, -25)
-ScrollingFrame.Position = UDim2.new(0, 0, 0, 25)
+ScrollingFrame.Size = UDim2.new(1, 0, 0.4, -30)
+ScrollingFrame.Position = UDim2.new(0, 0, 0, 30)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollingFrame.ScrollBarThickness = 6
+ScrollingFrame.ScrollBarThickness = 8
 ScrollingFrame.BackgroundTransparency = 1
 ScrollingFrame.Parent = Frame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 3)
+UIListLayout.Padding = UDim.new(0, 4)
 UIListLayout.Parent = ScrollingFrame
 
 -- Funções orbitar
@@ -66,7 +101,6 @@ local function StartOrbit(target)
 	TargetHRP = target
 	Orbitar = true
 end
-
 local function StopOrbit()
 	Orbitar = false
 	TargetHRP = nil
@@ -79,11 +113,10 @@ local function AtualizarLista()
 			child:Destroy()
 		end
 	end
-
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= LocalPlayer then
 			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, -6, 0, 25)
+			btn.Size = UDim2.new(1, -8, 0, 35)
 			btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			btn.Text = plr.Name
@@ -97,7 +130,6 @@ local function AtualizarLista()
 			end)
 		end
 	end
-
 	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
 end
 
@@ -107,66 +139,83 @@ AtualizarLista()
 
 -- Frame para sliders
 local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(1, 0, 0.5, -25)
-SliderFrame.Position = UDim2.new(0, 0, 0.5, 25)
+SliderFrame.Size = UDim2.new(1, 0, 0.6, -30)
+SliderFrame.Position = UDim2.new(0, 0, 0.4, 30)
 SliderFrame.BackgroundTransparency = 1
 SliderFrame.Parent = Frame
 
--- Função criar slider
+-- Função criar slider mobile-friendly
 local function CreateSlider(name, min, max, default, posY, callback)
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, -10, 0, 20)
-	label.Position = UDim2.new(0, 5, 0, posY)
+	label.Size = UDim2.new(1, -20, 0, 30)
+	label.Position = UDim2.new(0, 10, 0, posY)
 	label.BackgroundTransparency = 1
 	label.Text = name .. ": " .. default
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.TextScaled = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = SliderFrame
 
 	local sliderBG = Instance.new("Frame")
-	sliderBG.Size = UDim2.new(1, -10, 0, 15)
-	sliderBG.Position = UDim2.new(0, 5, 0, posY + 20)
+	sliderBG.Size = UDim2.new(1, -20, 0, 40)
+	sliderBG.Position = UDim2.new(0, 10, 0, posY + 30)
 	sliderBG.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	sliderBG.BorderSizePixel = 0
 	sliderBG.Parent = SliderFrame
 
 	local sliderFill = Instance.new("Frame")
-	sliderFill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
+	sliderFill.Size = UDim2.new((default - min)/(max - min), 1, 1, 0)
 	sliderFill.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+	sliderFill.BorderSizePixel = 0
 	sliderFill.Parent = sliderBG
 
-	local dragging = false
+	local handle = Instance.new("Frame")
+	handle.Size = UDim2.new(0, 30, 1, 0)
+	handle.Position = UDim2.new((default - min)/(max - min) - 0.05, 0, 0, 0)
+	handle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+	handle.BorderSizePixel = 0
+	handle.Parent = sliderBG
+
+	local draggingSlider = false
+	local sliderInput = nil
+
+	local function updateSlider(posX)
+		local pos = math.clamp(posX - sliderBG.AbsolutePosition.X, 0, sliderBG.AbsoluteSize.X)
+		local value = min + (pos / sliderBG.AbsoluteSize.X) * (max - min)
+		sliderFill.Size = UDim2.new((value - min)/(max - min), 0, 1, 0)
+		handle.Position = UDim2.new((value - min)/(max - min) - handle.Size.X.Scale/2, 0, 0, 0)
+		label.Text = name .. ": " .. string.format("%.1f", value)
+		callback(value)
+	end
 
 	sliderBG.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
+		if input.UserInputType == Enum.UserInputType.Touch then
+			draggingSlider = true
+			sliderInput = input
+			updateSlider(input.Position.X)
 		end
 	end)
-
-	sliderBG.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
-		end
-	end)
-
 	sliderBG.InputChanged:Connect(function(input)
-		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			local pos = math.clamp(input.Position.X - sliderBG.AbsolutePosition.X, 0, sliderBG.AbsoluteSize.X)
-			local value = min + (pos / sliderBG.AbsoluteSize.X) * (max - min)
-			sliderFill.Size = UDim2.new((value - min)/(max - min), 0, 1, 0)
-			label.Text = name .. ": " .. string.format("%.1f", value)
-			callback(value)
+		if draggingSlider and input == sliderInput then
+			updateSlider(input.Position.X)
+		end
+	end)
+	sliderBG.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch and input == sliderInput then
+			draggingSlider = false
+			sliderInput = nil
 		end
 	end)
 end
 
--- Criar sliders
+-- Criar sliders mobile-friendly
 CreateSlider("Velocidade", 0.5, 10, Velocidade, 0, function(val) Velocidade = val end)
-CreateSlider("Distancia", 2, 30, Distancia, 60, function(val) Distancia = val end)
+CreateSlider("Distancia", 2, 30, Distancia, 90, function(val) Distancia = val end)
 
 -- Botão Parar Orbitar
 local StopBtn = Instance.new("TextButton")
-StopBtn.Size = UDim2.new(1, -10, 0, 30)
-StopBtn.Position = UDim2.new(0, 5, 0, 130)
+StopBtn.Size = UDim2.new(1, -20, 0, 45)
+StopBtn.Position = UDim2.new(0, 10, 0, 190)
 StopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 StopBtn.Text = "Parar Orbitar"
 StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
