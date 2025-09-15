@@ -1,7 +1,37 @@
--- Orbitar Player Mobile-Friendly com GUI arrastável pelo título
+-- Script de servidor + GUI mobile para teste de anti-cheat
 -- By ChatGPT
 
+-- ========== SERVIDOR: Imortal e invisível ==========
 local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		local humanoid = character:WaitForChild("Humanoid")
+		local hrp = character:WaitForChild("HumanoidRootPart")
+
+		-- Imortal
+		humanoid.MaxHealth = math.huge
+		humanoid.Health = math.huge
+
+		-- Invisível
+		for _, part in pairs(character:GetDescendants()) do
+			if part:IsA("BasePart") or part:IsA("MeshPart") then
+				part.Transparency = 1
+				part.CanCollide = false
+			elseif part:IsA("Decal") or part:IsA("Texture") then
+				part.Transparency = 1
+			end
+		end
+
+		-- Impede morte
+		humanoid.Died:Connect(function()
+			wait(0.1)
+			humanoid.Health = humanoid.MaxHealth
+		end)
+	end)
+end)
+
+-- ========== CLIENTE: Orbitar player com GUI mobile ==========
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
@@ -9,8 +39,6 @@ local LocalPlayer = Players.LocalPlayer
 -- Configurações iniciais
 local Distancia = 10
 local Velocidade = 2
-
--- Variáveis de orbitar
 local Orbitar = false
 local TargetHRP = nil
 local HRP = nil
@@ -24,9 +52,8 @@ end
 UpdateCharacter()
 LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
--- Criar GUI
+-- GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "PlayerOrbiterGUI"
 ScreenGui.Parent = game.CoreGui
 
 local Frame = Instance.new("Frame")
@@ -35,7 +62,7 @@ Frame.Position = UDim2.new(0, 50, 0, 50)
 Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Frame.BorderSizePixel = 0
 Frame.Active = true
-Frame.Draggable = false -- Desativa arrasto geral
+Frame.Draggable = false
 Frame.Parent = ScreenGui
 
 -- Título arrastável
@@ -48,45 +75,46 @@ Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Parent = Frame
 
--- GUI arrastável apenas pelo título
-local dragging = false
-local dragInput = nil
-local dragStart = nil
-local startPos = nil
+-- Arrastar GUI pelo título (touch/mobile)
+do
+	local dragging = false
+	local dragInput = nil
+	local dragStart = nil
+	local startPos = nil
 
-Title.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragInput = input
-		dragStart = input.Position
-		startPos = Frame.Position
+	Title.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragInput = input
+			dragStart = input.Position
+			startPos = Frame.Position
 
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-				dragInput = nil
-			end
-		end)
-	end
-end)
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					dragInput = nil
+				end
+			end)
+		end
+	end)
 
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - dragStart
-		Frame.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
-end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			Frame.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
 
--- Container rolável para players
+-- ScrollingFrame para players
 local ScrollingFrame = Instance.new("ScrollingFrame")
 ScrollingFrame.Size = UDim2.new(1, 0, 0.4, -30)
 ScrollingFrame.Position = UDim2.new(0, 0, 0, 30)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingFrame.ScrollBarThickness = 8
 ScrollingFrame.BackgroundTransparency = 1
 ScrollingFrame.Parent = Frame
@@ -106,7 +134,7 @@ local function StopOrbit()
 	TargetHRP = nil
 end
 
--- Atualiza lista de players
+-- Atualizar lista de players
 local function AtualizarLista()
 	for _, child in pairs(ScrollingFrame:GetChildren()) do
 		if child:IsA("TextButton") then
@@ -137,14 +165,13 @@ Players.PlayerAdded:Connect(AtualizarLista)
 Players.PlayerRemoving:Connect(AtualizarLista)
 AtualizarLista()
 
--- Frame para sliders
+-- Sliders mobile
 local SliderFrame = Instance.new("Frame")
 SliderFrame.Size = UDim2.new(1, 0, 0.6, -30)
 SliderFrame.Position = UDim2.new(0, 0, 0.4, 30)
 SliderFrame.BackgroundTransparency = 1
 SliderFrame.Parent = Frame
 
--- Função criar slider mobile-friendly
 local function CreateSlider(name, min, max, default, posY, callback)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, -20, 0, 30)
@@ -208,7 +235,6 @@ local function CreateSlider(name, min, max, default, posY, callback)
 	end)
 end
 
--- Criar sliders mobile-friendly
 CreateSlider("Velocidade", 0.5, 10, Velocidade, 0, function(val) Velocidade = val end)
 CreateSlider("Distancia", 2, 30, Distancia, 90, function(val) Distancia = val end)
 
