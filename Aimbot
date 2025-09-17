@@ -1,0 +1,73 @@
+-- LocalScript para StarterPlayerScripts
+-- GUI + Aimbot básico (Head Aim) para mobile (persistente após respawn)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+local localPlayer = Players.LocalPlayer
+local AIM_DISTANCE = 1000
+local aimbotEnabled = false
+
+-- Função para achar inimigo mais próximo
+local function getClosestEnemy()
+    local closest = nil
+    local minDist = math.huge
+    local localHRP = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not localHRP then return nil end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if head and hrp then
+                local dist = (hrp.Position - localHRP.Position).Magnitude
+                if dist < minDist and dist <= AIM_DISTANCE then
+                    minDist = dist
+                    closest = head
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- Função para criar GUI
+local function createGUI(playerGui)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AimbotGUI"
+    screenGui.ResetOnSpawn = false -- garante que não será destruído ao respawn
+    screenGui.Parent = playerGui
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 120, 0, 50)
+    button.Position = UDim2.new(0.85, 0, 0.8, 0)
+    button.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Text = "Aimbot OFF"
+    button.Parent = screenGui
+
+    button.MouseButton1Click:Connect(function()
+        aimbotEnabled = not aimbotEnabled
+        button.Text = aimbotEnabled and "Aimbot ON" or "Aimbot OFF"
+    end)
+end
+
+-- Cria GUI inicial
+createGUI(localPlayer:WaitForChild("PlayerGui"))
+
+-- Recria GUI automaticamente após respawn
+localPlayer.CharacterAdded:Connect(function(char)
+    wait(0.5) -- espera PlayerGui ser restaurado
+    createGUI(localPlayer:WaitForChild("PlayerGui"))
+end)
+
+-- Loop para aimbot
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled then
+        local targetHead = getClosestEnemy()
+        if targetHead then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+        end
+    end
+end)
