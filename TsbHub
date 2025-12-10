@@ -1,18 +1,18 @@
--- Script: Orbitar + Teleportes + Respawn Instantâneo
--- By ChatGPT
-
+--========================================================
+-- Script LOCAL: Seguir atrás + Teleporte céu flutuante
+--========================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
 -- =================== Variáveis ===================
 local Distancia = 5
 local Velocidade = 1.5
-local Orbitar = false
+local Seguir = false
 local TargetHRP = nil
 local HRP = nil
-local Angulo = 0
 
 -- =================== Atualiza Character ===================
 local function UpdateCharacter()
@@ -21,6 +21,15 @@ local function UpdateCharacter()
 end
 UpdateCharacter()
 LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
+
+-- =================== Criar parte flutuante no céu ===================
+local skyPart = Instance.new("Part")
+skyPart.Size = Vector3.new(10,1,10)
+skyPart.Anchored = true
+skyPart.CanCollide = true
+skyPart.Position = Vector3.new(0, 200, 0) -- altura de 200 studs
+skyPart.BrickColor = BrickColor.new("Bright blue")
+skyPart.Parent = Workspace
 
 -- =================== GUI ===================
 local ScreenGui = Instance.new("ScreenGui")
@@ -40,7 +49,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 25)
 Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Title.BorderSizePixel = 0
-Title.Text = "Orbitar Player"
+Title.Text = "Seguir Alvo"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Parent = Frame
@@ -88,13 +97,13 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 2)
 UIListLayout.Parent = ScrollingFrame
 
-local function StartOrbit(target)
+local function StartFollow(target)
 	TargetHRP = target
-	Orbitar = true
+	Seguir = true
 end
 
-local function StopOrbit()
-	Orbitar = false
+local function StopFollow()
+	Seguir = false
 	TargetHRP = nil
 end
 
@@ -113,7 +122,7 @@ local function AtualizarLista()
 			btn.Parent = ScrollingFrame
 			btn.MouseButton1Click:Connect(function()
 				if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-					StartOrbit(plr.Character.HumanoidRootPart)
+					StartFollow(plr.Character.HumanoidRootPart)
 				end
 			end)
 		end
@@ -208,44 +217,25 @@ local function CreateButton(text, posY, callback)
 	btn.MouseButton1Click:Connect(callback)
 end
 
--- Parar orbitar
-CreateButton("Parar Orbitar", 150, function()
-	StopOrbit()
+CreateButton("Parar Seguir", 150, function()
+	StopFollow()
 end)
 
--- Teleport Death Cutscene
-CreateButton("Teleport Death Cutscene", 185, function()
-	local cut = workspace:FindFirstChild("Cutscenes")
-	local model = cut and cut:FindFirstChild("Death Cutscene")
-	if model and model.PrimaryPart then
-		HRP.CFrame = model.PrimaryPart.CFrame + Vector3.new(0,5,0)
+CreateButton("Teleportar para Céu", 185, function()
+	if HRP and skyPart then
+		HRP.CFrame = skyPart.CFrame + Vector3.new(0,3,0)
 	end
 end)
 
--- Teleport Atoms
-CreateButton("Teleport Atoms", 220, function()
-	local cut = workspace:FindFirstChild("Cutscenes")
-	local model = cut and cut:FindFirstChild("Atoms")
-	if model and model.PrimaryPart then
-		HRP.CFrame = model.PrimaryPart.CFrame + Vector3.new(0,5,0)
-	end
-end)
-
--- Teleport Void
-CreateButton("Teleport Void", 255, function()
-	if HRP then
-		HRP.CFrame = CFrame.new(0, -5000, 0)
-	end
-end)
-
--- =================== Orbitar ===================
+-- =================== Seguir ATRÁS do Target ===================
 RunService.Heartbeat:Connect(function(dt)
-	if Orbitar and TargetHRP and HRP then
-		Angulo = Angulo + Velocidade * dt
-		local x = math.cos(Angulo) * Distancia
-		local z = math.sin(Angulo) * Distancia
-		local pos = TargetHRP.Position + Vector3.new(x, 0, z)
-		HRP.CFrame = CFrame.lookAt(pos, TargetHRP.Position)
+	if Seguir and TargetHRP and HRP then
+		-- Posição atrás do alvo
+		local lookVector = TargetHRP.CFrame.LookVector
+		local behindPos = TargetHRP.Position - lookVector * Distancia + Vector3.new(0,2,0)
+		-- Movimenta suavemente usando Velocidade
+		local newCFrame = CFrame.lookAt(HRP.Position:Lerp(behindPos, Velocidade*dt), TargetHRP.Position)
+		HRP.CFrame = newCFrame
 	end
 end)
 
