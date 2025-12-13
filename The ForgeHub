@@ -1,0 +1,240 @@
+--==================================================
+-- AUTO MINE GUI + SAFE TWEEN
+--==================================================
+
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Root = Character:WaitForChild("HumanoidRootPart")
+
+local ToolActivate = ReplicatedStorage
+    .Shared.Packages.Knit.Services.ToolService.RF.ToolActivated
+
+--================ CONFIG =================
+
+getgenv().Config = {
+    Enabled = false,
+    TweenSpeed = 8, -- studs por segundo (REAL)
+    SafeHeight = 6, -- flutuar acima da pedra
+    MinSwingDelay = 0.6,
+    MaxSwingDelay = 0.9,
+
+    RockFolders = {
+        "Island1CaveStart",
+        "Island1CaveMid",
+        "Island1CaveDeep"
+    }
+}
+
+--================ STATS =================
+
+local mined = 0
+local activeTime = 0
+local CurrentTarget = nil
+local currentTween = nil
+
+--================ GUI =================
+
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "AutoMineGUI"
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.fromScale(0.28,0.42)
+frame.Position = UDim2.fromScale(0.36,0.28)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Instance.new("UICorner", frame)
+
+local function makeBtn(text,y)
+    local b = Instance.new("TextButton", frame)
+    b.Size = UDim2.fromScale(0.9,0.12)
+    b.Position = UDim2.fromScale(0.05,y)
+    b.Text = text
+    b.TextScaled = true
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Instance.new("UICorner", b)
+    return b
+end
+
+local toggleBtn = makeBtn("INICIAR",0.05)
+local resetBtn  = makeBtn("RESET",0.20)
+
+local speedBox = Instance.new("TextBox", frame)
+speedBox.Size = UDim2.fromScale(0.9,0.12)
+speedBox.Position = UDim2.fromScale(0.05,0.35)
+speedBox.Text = tostring(getgenv().Config.TweenSpeed)
+speedBox.PlaceholderText = "Tween Speed"
+speedBox.TextScaled = true
+speedBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+speedBox.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", speedBox)
+
+local rockLabel = Instance.new("TextLabel", frame)
+rockLabel.Size = UDim2.fromScale(0.9,0.1)
+rockLabel.Position = UDim2.fromScale(0.05,0.52)
+rockLabel.Text = "Pedras: 0"
+rockLabel.TextScaled = true
+rockLabel.BackgroundTransparency = 1
+rockLabel.TextColor3 = Color3.new(1,1,1)
+
+local timerLabel = rockLabel:Clone()
+timerLabel.Parent = frame
+timerLabel.Position = UDim2.fromScale(0.05,0.63)
+timerLabel.Text = "Tempo: 0s"
+
+--================ FUNCTIONS =================
+
+local function GetRockHP(hitbox)
+    local model = hitbox:FindFirstAncestorWhichIsA("Model")
+    if not model then return nil end
+
+    local info = model:FindFirstChild("infoFrame", true)
+    if not info then return nil end
+
+    local frame = info:FindFirstChild("Frame")
+    if not frame then return nil end
+
+    local hpLabel = frame:FindFirstChild("rockHP")
+    if not hpLabel then return nil end
+
+    local text = hpLabel.Text:gsub("[^%d]","")
+    return tonumber(text)
+end
+
+local function ScanRocks()
+    local list = {}
+    local rocks = workspace:FindFirstChild("Rocks")
+    if not rocks then return list end
+
+    for _,folderName in ipairs(getgenv().Config.RockFolders) do
+        local folder = rocks:FindFirstChild(folderName)
+        if folder then
+            for _,d in ipairs(folder:GetDescendants()) do
+                if d.Name == "Hitbox" and d:IsA("BasePart") then
+                    table.insert(list,d)
+                end
+            end
+        end
+    end
+    return list
+end
+
+local function GetClosestRock()
+    local best,dist = nil,math.huge
+    local rp = Root.Position
+
+    for _,rock in ipairs(ScanRocks()) do
+        if rock and rock.Parent then
+            local hp = GetRockHP(rock)
+            if hp and hp > 0 then
+                local d = (rock.Position - rp).Magnitude
+                if d < dist then
+                    dist = d
+                    best = rock
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function CancelTween()
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+end
+
+local function TweenTo(pos, lookAt)
+    CancelTween()
+
+    local distance = (Root.Position - pos).Magnitude
+    local duration = distance / math.max(1,getgenv().Config.TweenSpeed)
+
+    currentTween = TweenService:Create(
+        Root,
+        TweenInfo.new(duration, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(pos, lookAt)}
+    )
+
+    currentTween:Play()
+    currentTween.Completed:Wait()
+end
+
+local function SoftReset()
+    mined = 0
+    activeTime = 0
+    CurrentTarget = nil
+    rockLabel.Text = "Pedras: 0"
+    timerLabel.Text = "Tempo: 0s"
+end
+
+--================ GUI LOGIC =================
+
+toggleBtn.MouseButton1Click:Connect(function()
+    getgenv().Config.Enabled = not getgenv().Config.Enabled
+    toggleBtn.Text = getgenv().Config.Enabled and "PARAR" or "INICIAR"
+    if not getgenv().Config.Enabled then
+        CancelTween()
+    end
+end)
+
+resetBtn.MouseButton1Click:Connect(SoftReset)
+
+speedBox.FocusLost:Connect(function()
+    local v = tonumber(speedBox.Text)
+    if v and v > 1 then
+        getgenv().Config.TweenSpeed = v
+    end
+    speedBox.Text = tostring(getgenv().Config.TweenSpeed)
+end)
+
+--================ TIMER =================
+
+task.spawn(function()
+    while task.wait(1) do
+        if getgenv().Config.Enabled then
+            activeTime += 1
+            timerLabel.Text = "Tempo: "..activeTime.."s"
+        end
+    end
+end)
+
+--================ MAIN LOOP =================
+
+task.spawn(function()
+    while task.wait(0.25) do
+        if not getgenv().Config.Enabled then continue end
+
+        if not CurrentTarget or not CurrentTarget.Parent then
+            CurrentTarget = GetClosestRock()
+            continue
+        end
+
+        local hp = GetRockHP(CurrentTarget)
+        if not hp or hp <= 0 then
+            mined += 1
+            rockLabel.Text = "Pedras: "..mined
+            CurrentTarget = nil
+            continue
+        end
+
+        local topPos = CurrentTarget.Position
+            + Vector3.new(0,getgenv().Config.SafeHeight,0)
+
+        TweenTo(topPos, CurrentTarget.Position)
+
+        pcall(function()
+            ToolActivate:InvokeServer("Pickaxe")
+        end)
+
+        task.wait(math.random(
+            getgenv().Config.MinSwingDelay*100,
+            getgenv().Config.MaxSwingDelay*100
+        )/100)
+    end
+end)
